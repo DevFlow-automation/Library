@@ -282,11 +282,11 @@ export default function BooksPage() {
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-4">
                           <span className="text-xs text-gray-500 font-mono w-14">Login</span>
-                          <span className="text-sm text-indigo-700 font-mono font-bold bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">ВАШ_ЛОГИН</span>
+                          <span className="text-sm text-indigo-700 font-mono font-bold bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">new_generation</span>
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="text-xs text-gray-500 font-mono w-14">Pass</span>
-                          <span className="text-sm text-indigo-700 font-mono font-bold bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">ВАШ_ПАРОЛЬ</span>
+                          <span className="text-sm text-indigo-700 font-mono font-bold bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">english</span>
                         </div>
                       </div>
                     </div>
