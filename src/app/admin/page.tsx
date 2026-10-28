@@ -19,6 +19,27 @@ type SessionData = {
   };
 };
 
+// Функция для подсчета времени чтения
+function getDuration(start: string, end: string | null) {
+  if (!end) return "—";
+
+  const diffMs = new Date(end).getTime() - new Date(start).getTime();
+  if (diffMs <= 0) return "—";
+
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours} ч ${minutes} мин`;
+  } else if (minutes > 0) {
+    return `${minutes} мин ${seconds} сек`;
+  } else {
+    return `${seconds} сек`;
+  }
+}
+
 export default function AdminPage() {
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,14 +78,16 @@ export default function AdminPage() {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Статистика чтения");
 
+    // Добавлена новая колонка "Время"
     worksheet.columns = [
       { header: "Ученик", key: "student" },
       { header: "Класс", key: "class" },
       { header: "Книга", key: "book" },
       { header: "Уровень", key: "level" },
       { header: "Статус", key: "status" },
-      { header: "Дата начала", key: "startDate" },
-      { header: "Дата завершения", key: "endDate" }
+      { header: "Начало", key: "startDate" },
+      { header: "Завершение", key: "endDate" },
+      { header: "Время", key: "duration" }
     ];
 
     const headerRow = worksheet.getRow(1);
@@ -85,17 +108,16 @@ export default function AdminPage() {
         level: session.books?.level || "-",
         status: session.status === "started" ? "📖 Читает" : "✅ Завершил",
         startDate: new Date(session.started_at).toLocaleString("ru-RU"),
-        endDate: session.completed_at ? new Date(session.completed_at).toLocaleString("ru-RU") : "-"
+        endDate: session.completed_at ? new Date(session.completed_at).toLocaleString("ru-RU") : "-",
+        duration: getDuration(session.started_at, session.completed_at)
       });
     });
 
-    // Безопасный перебор колонок для TypeScript
     worksheet.columns.forEach(column => {
-      if (!column) return; // Защита от undefined
+      if (!column) return;
 
       let maxLength = 0;
 
-      // Используем опциональную цепочку (?.) на случай отсутствия метода
       column.eachCell?.({ includeEmpty: true }, cell => {
         const columnLength = cell.value ? cell.value.toString().length : 10;
         if (columnLength > maxLength) {
@@ -112,7 +134,6 @@ export default function AdminPage() {
       column.width = maxLength < 10 ? 12 : maxLength + 2;
     });
 
-    // Нативный способ скачивания (заменяет проблемный file-saver)
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = window.URL.createObjectURL(blob);
@@ -138,7 +159,6 @@ export default function AdminPage() {
     <main className="min-h-screen bg-gray-50 p-6 sm:p-10 text-gray-900">
       <div className="max-w-7xl mx-auto">
 
-        {/* Шапка админки */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Статистика чтения</h1>
@@ -156,7 +176,6 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* Таблица */}
         <div className="bg-white shadow-xl shadow-indigo-100/50 rounded-2xl overflow-hidden border border-gray-100">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -169,12 +188,13 @@ export default function AdminPage() {
                   <th className="p-5 font-bold">Статус</th>
                   <th className="p-5 font-bold">Начало</th>
                   <th className="p-5 font-bold">Завершение</th>
+                  <th className="p-5 font-bold">Длительность</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 text-sm">
                 {sessions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-10 text-center text-gray-400">
+                    <td colSpan={8} className="p-10 text-center text-gray-400">
                       Нет данных о чтении
                     </td>
                   </tr>
@@ -215,6 +235,9 @@ export default function AdminPage() {
                         {session.completed_at
                           ? new Date(session.completed_at).toLocaleString("ru-RU")
                           : "—"}
+                      </td>
+                      <td className="p-5 text-indigo-700 font-bold text-xs">
+                        {getDuration(session.started_at, session.completed_at)}
                       </td>
                     </tr>
                   ))
