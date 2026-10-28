@@ -23,6 +23,7 @@ export default function BooksPage() {
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  const [isFinishing, setIsFinishing] = useState(false);
 
   const router = useRouter();
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
@@ -69,14 +70,12 @@ export default function BooksPage() {
     try {
       const now = new Date().toISOString();
 
-      // Удаляем предыдущие незакрытые "быстрые клики"
       await supabase
         .from("reading_sessions")
         .delete()
         .eq("student_id", studentId)
         .eq("status", "started");
 
-      // Создаем новую сессию
       const { data, error } = await supabase.from("reading_sessions").insert([
         {
           student_id: studentId,
@@ -100,30 +99,31 @@ export default function BooksPage() {
   };
 
   const handleFinishReading = async () => {
-      const studentId = localStorage.getItem("student_id");
-      if (!studentId) return;
+    const studentId = localStorage.getItem("student_id");
+    if (!studentId) return;
 
-      try {
-        const now = new Date().toISOString();
+    setIsFinishing(true);
 
-        // Надежное обновление: ищем по ID ученика и статусу
-        const { error } = await supabase
-          .from("reading_sessions")
-          .update({ status: "finished", completed_at: now })
-          .eq("student_id", studentId)
-          .eq("status", "started");
+    try {
+      const now = new Date().toISOString();
 
-        if (error) {
-          console.error("Ошибка Supabase при обновлении:", error.message);
-          return;
-        }
+      const { error } = await supabase
+        .from("reading_sessions")
+        .update({ status: "finished", completed_at: now })
+        .eq("student_id", studentId)
+        .eq("status", "started");
 
-        // Убираем сессию из интерфейса (без всплывающего окна)
-        setActiveSession(null);
-      } catch (error) {
-        console.error("Ошибка при завершении чтения:", error);
+      if (error) {
+        console.error("Ошибка Supabase:", error.message);
       }
-    };
+
+      setActiveSession(null);
+    } catch (error) {
+      console.error("Ошибка при завершении чтения:", error);
+    } finally {
+      setIsFinishing(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("student_id");
@@ -198,20 +198,21 @@ export default function BooksPage() {
         </div>
       </header>
 
-      {/* Плавающая панель активной книги */}
+      {/* Плавающая панель перенесена наверх и по центру */}
       {activeSession && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-white px-5 py-3 sm:px-6 sm:py-4 rounded-2xl shadow-2xl shadow-indigo-200/50 border border-gray-100 flex items-center gap-4 sm:gap-6 z-50">
-          <div className="flex flex-col">
-            <span className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-widest font-bold">Сейчас читаете</span>
-            <span className="text-xs sm:text-sm font-bold text-indigo-700 max-w-[120px] sm:max-w-[200px] truncate">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-xl shadow-indigo-100 border border-indigo-50 flex items-center gap-6 z-50">
+          <div className="flex flex-col text-center">
+            <span className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-widest font-bold">Вы сейчас читаете</span>
+            <span className="text-xs sm:text-sm font-bold text-indigo-700 max-w-[200px] truncate mt-1">
               {books.find(b => b.id === activeSession.book_id)?.title || "Книгу"}
             </span>
           </div>
           <button
             onClick={handleFinishReading}
-            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-green-200 transition-all active:scale-95 whitespace-nowrap"
+            disabled={isFinishing}
+            className={`${isFinishing ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600 active:scale-95'} text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all whitespace-nowrap`}
           >
-            Завершить ✅
+            {isFinishing ? "Секунду..." : "Завершить ✅"}
           </button>
         </div>
       )}
@@ -263,7 +264,7 @@ export default function BooksPage() {
                           <span className="text-sm text-indigo-700 font-mono font-bold bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">ВАШ_ЛОГИН</span>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="text-xs text-gray-500 font-mono w-14">Password</span>
+                          <span className="text-xs text-gray-500 font-mono w-14">Pass</span>
                           <span className="text-sm text-indigo-700 font-mono font-bold bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">ВАШ_ПАРОЛЬ</span>
                         </div>
                       </div>
@@ -273,9 +274,10 @@ export default function BooksPage() {
                       {isReadingThisBook ? (
                         <button
                           onClick={handleFinishReading}
-                          className="px-8 py-4 bg-green-500 text-white hover:bg-green-600 hover:shadow-lg hover:shadow-green-200 rounded-full text-sm font-bold transition-all duration-300 uppercase flex items-center gap-2"
+                          disabled={isFinishing}
+                          className={`px-8 py-4 ${isFinishing ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600 hover:shadow-lg hover:shadow-green-200'} text-white rounded-full text-sm font-bold transition-all duration-300 uppercase flex items-center gap-2`}
                         >
-                          ✅ Я закончил читать
+                          {isFinishing ? "Сохраняем..." : "✅ Я закончил читать"}
                         </button>
                       ) : (
                         <button
