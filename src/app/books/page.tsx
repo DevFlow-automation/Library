@@ -41,19 +41,35 @@ export default function BooksPage() {
   };
 
   const handleReadBook = async (book: Book) => {
-    const studentId = localStorage.getItem("student_id");
-    if (!studentId) return;
+      const studentId = localStorage.getItem("student_id");
+      if (!studentId) return;
 
-    try {
-      await supabase.from("reading_sessions").insert([
-        { student_id: studentId, book_id: book.id, status: "started" }
-      ]);
-      window.open(book.external_link, "_blank");
-    } catch (error) {
-      console.error("Ошибка:", error);
-      alert("Не удалось открыть книгу.");
-    }
-  };
+      try {
+        const now = new Date().toISOString();
+
+        // 1. Закрываем все предыдущие незавершенные книги этого ученика
+        await supabase
+          .from("reading_sessions")
+          .update({ status: "finished", completed_at: now })
+          .eq("student_id", studentId)
+          .eq("status", "started");
+
+        // 2. Создаем новую сессию чтения
+        await supabase.from("reading_sessions").insert([
+          {
+            student_id: studentId,
+            book_id: book.id,
+            status: "started",
+            started_at: now
+          }
+        ]);
+
+        window.open(book.external_link, "_blank");
+      } catch (error) {
+        console.error("Ошибка:", error);
+        alert("Не удалось открыть книгу.");
+      }
+    };
 
   const handleLogout = () => {
     localStorage.removeItem("student_id");
