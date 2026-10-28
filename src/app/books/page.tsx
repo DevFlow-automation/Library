@@ -100,22 +100,30 @@ export default function BooksPage() {
   };
 
   const handleFinishReading = async () => {
-    if (!activeSession) return;
+      const studentId = localStorage.getItem("student_id");
+      if (!studentId) return;
 
-    try {
-      const now = new Date().toISOString();
+      try {
+        const now = new Date().toISOString();
 
-      await supabase
-        .from("reading_sessions")
-        .update({ status: "finished", completed_at: now })
-        .eq("id", activeSession.id);
+        // Надежное обновление: ищем по ID ученика и статусу
+        const { error } = await supabase
+          .from("reading_sessions")
+          .update({ status: "finished", completed_at: now })
+          .eq("student_id", studentId)
+          .eq("status", "started");
 
-      setActiveSession(null);
-      alert("Отлично! Книга прочитана, время сохранено.");
-    } catch (error) {
-      console.error("Ошибка при завершении чтения:", error);
-    }
-  };
+        if (error) {
+          console.error("Ошибка Supabase при обновлении:", error.message);
+          return;
+        }
+
+        // Убираем сессию из интерфейса (без всплывающего окна)
+        setActiveSession(null);
+      } catch (error) {
+        console.error("Ошибка при завершении чтения:", error);
+      }
+    };
 
   const handleLogout = () => {
     localStorage.removeItem("student_id");
