@@ -47,14 +47,14 @@ export default function BooksPage() {
       try {
         const now = new Date().toISOString();
 
-        // 1. Закрываем все предыдущие незавершенные книги этого ученика
+        // 1. Полностью УДАЛЯЕМ предыдущие незакрытые сессии ученика из базы
         await supabase
           .from("reading_sessions")
-          .update({ status: "finished", completed_at: now })
+          .delete()
           .eq("student_id", studentId)
           .eq("status", "started");
 
-        // 2. Создаем новую сессию чтения
+        // 2. Записываем новую книгу
         await supabase.from("reading_sessions").insert([
           {
             student_id: studentId,
