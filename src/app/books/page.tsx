@@ -99,24 +99,45 @@ export default function BooksPage() {
   };
 
   const handleFinishReading = async () => {
-    const studentId = localStorage.getItem("student_id");
-    if (!studentId) return;
-
+    if (!activeSession) return;
     setIsFinishing(true);
 
     try {
       const now = new Date().toISOString();
 
-      const { error } = await supabase
+      // 1. Строгое обновление по ID сессии с подтверждением
+      const { data, error } = await supabase
         .from("reading_sessions")
         .update({ status: "finished", completed_at: now })
-        .eq("student_id", studentId)
-        .eq("status", "started");
+        .eq("id", activeSession.id)
+        .select();
 
+      // 2. Если база вернула ошибку, интерфейс не скроет кнопку, а покажет алерт
       if (error) {
         console.error("Ошибка Supabase:", error.message);
+        alert("Ошибка при сохранении в базу: " + error.message);
+        setIsFinishing(false);
+        return;
       }
 
+      // 3. Запасной план: если по ID строка не найдена (например, старая сессия)
+      if (!data || data.length === 0) {
+        const studentId = localStorage.getItem("student_id");
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("reading_sessions")
+          .update({ status: "finished", completed_at: now })
+          .eq("student_id", studentId)
+          .eq("status", "started")
+          .select();
+
+        if (fallbackError || !fallbackData || fallbackData.length === 0) {
+          alert("Не удалось найти эту книгу в базе данных. Возможно, она уже закрыта.");
+          setIsFinishing(false);
+          return;
+        }
+      }
+
+      // Только если база 100% обновила строку, скрываем панель
       setActiveSession(null);
     } catch (error) {
       console.error("Ошибка при завершении чтения:", error);
