@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import ExcelJS from "exceljs";
-import { saveAs } from "file-saver";
 
 type SessionData = {
   id: number;
@@ -29,7 +28,6 @@ export default function AdminPage() {
   }, []);
 
   const fetchSessions = async () => {
-    // Запрашиваем сессии вместе с данными об ученике и книге
     const { data, error } = await supabase
       .from("reading_sessions")
       .select(`
@@ -45,7 +43,7 @@ export default function AdminPage() {
     if (error) {
       console.error("Ошибка при загрузке данных:", error);
     } else {
-      // @ts-ignore (игнорируем строгую типизацию вложенных объектов Supabase для простоты)
+      // @ts-ignore
       setSessions(data || []);
     }
     setLoading(false);
@@ -91,9 +89,14 @@ export default function AdminPage() {
       });
     });
 
+    // Безопасный перебор колонок для TypeScript
     worksheet.columns.forEach(column => {
+      if (!column) return; // Защита от undefined
+
       let maxLength = 0;
-      column.eachCell({ includeEmpty: true }, cell => {
+
+      // Используем опциональную цепочку (?.) на случай отсутствия метода
+      column.eachCell?.({ includeEmpty: true }, cell => {
         const columnLength = cell.value ? cell.value.toString().length : 10;
         if (columnLength > maxLength) {
           maxLength = columnLength;
@@ -105,12 +108,22 @@ export default function AdminPage() {
           right: { style: "thin", color: { argb: "FFCBD5E1" } }
         };
       });
+
       column.width = maxLength < 10 ? 12 : maxLength + 2;
     });
 
+    // Нативный способ скачивания (заменяет проблемный file-saver)
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    saveAs(blob, `MRJ_Отчет_${new Date().toLocaleDateString("ru-RU")}.xlsx`);
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `MRJ_Отчет_${new Date().toLocaleDateString("ru-RU")}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   if (loading) {
