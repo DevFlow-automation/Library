@@ -6,7 +6,7 @@ import ExcelJS from "exceljs";
 
 type SessionData = {
   id: number;
-  student_id: string; // Добавили ID ученика для обновления профиля
+  student_id: string;
   status: string;
   started_at: string;
   completed_at: string | null;
@@ -56,6 +56,7 @@ export default function AdminPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("newest"); // Новое состояние для сортировки
 
   useEffect(() => {
     fetchSessions();
@@ -105,7 +106,6 @@ export default function AdminPage() {
     
     setIsSaving(true);
     
-    // 1. Обновляем данные самой сессии (время и статус)
     const { error: sessionError } = await supabase
       .from("reading_sessions")
       .update({
@@ -115,7 +115,6 @@ export default function AdminPage() {
       })
       .eq("id", editingSession.id);
 
-    // 2. Обновляем данные профиля (ФИО и класс)
     const { error: profileError } = await supabase
       .from("profiles")
       .update({
@@ -127,8 +126,6 @@ export default function AdminPage() {
     if (sessionError || profileError) {
       alert("Ошибка при сохранении: " + (sessionError?.message || profileError?.message));
     } else {
-      // Умное обновление локального состояния:
-      // Меняем ФИО и класс у ВСЕХ записей этого ученика, а время/статус - только у редактируемой
       setSessions(sessions.map(s => {
         if (s.student_id === editingSession.student_id) {
           return {
@@ -151,6 +148,7 @@ export default function AdminPage() {
     setIsSaving(false);
   };
 
+  // 1. Сначала фильтруем
   const filteredSessions = sessions.filter(session => {
     const matchesSearch = 
       (session.profiles?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -161,8 +159,40 @@ export default function AdminPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // 2. Затем сортируем
+  const processedSessions = [...filteredSessions].sort((a, b) => {
+    if (sortOrder === "newest") {
+      return new Date(b.started_at).getTime() - new Date(a.started_at).getTime();
+    }
+    if (sortOrder === "oldest") {
+      return new Date(a.started_at).getTime() - new Date(b.started_at).getTime();
+    }
+    
+    // Вычисляем чистую длительность в миллисекундах для сортировки по времени
+    const getMs = (session: SessionData) => {
+      if (!session.completed_at) return -1; // Если не закончил, отправляем в самый низ
+      return new Date(session.completed_at).getTime() - new Date(session.started_at).getTime();
+    };
+
+    const durationA = getMs(a);
+    const durationB = getMs(b);
+
+    if (sortOrder === "duration_desc") {
+      return durationB - durationA; // Дольше всех -> Меньше всех
+    }
+    if (sortOrder === "duration_asc") {
+      // Игнорируем незавершенные (-1) при сортировке "от меньшего к большему", оставляем их внизу
+      if (durationA === -1) return 1;
+      if (durationB === -1) return -1;
+      return durationA - durationB; // Меньше всех -> Дольше всех
+    }
+    
+    return 0;
+  });
+
   const exportToExcel = async () => {
-    if (!filteredSessions || filteredSessions.length === 0) {
+    // Экспортируем уже отфильтрованные и ОТСОРТИРОВАННЫЕ данные
+    if (!processedSessions || processedSessions.length === 0) {
       return alert("Нет данных для экспорта");
     }
 
@@ -190,7 +220,7 @@ export default function AdminPage() {
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
     headerRow.height = 25;
 
-    filteredSessions.forEach(session => {
+    processedSessions.forEach(session => {
       worksheet.addRow({
         student: session.profiles?.full_name || "Неизвестно",
         class: session.profiles?.class_name || "-",
@@ -254,8 +284,6 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleUpdate} className="flex flex-col gap-4">
-              
-              {/* Поле редактирования ФИО */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">ФИО Ученика</label>
                 <input 
@@ -270,7 +298,6 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Поле редактирования Класса */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Класс</label>
                 <input 
@@ -357,27 +384,40 @@ export default function AdminPage() {
           </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        {/* Обновленная панель фильтров и сортировки */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <svg className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input 
               type="text" 
-              placeholder="Поиск по имени ученика или названию книги..." 
+              placeholder="Поиск по имени или книге..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
             />
           </div>
+          
           <select 
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-48 px-4 py-3 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm cursor-pointer"
+            className="w-full md:w-48 px-4 py-3 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm cursor-pointer"
           >
             <option value="all">Все статусы</option>
             <option value="started">Читает</option>
             <option value="finished">Завершил</option>
+          </select>
+
+          <select 
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="w-full md:w-56 px-4 py-3 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm cursor-pointer font-medium text-indigo-700"
+          >
+            <option value="newest">Сначала новые</option>
+            <option value="oldest">Сначала старые</option>
+            <option value="duration_desc">Дольше всех читали</option>
+            <option value="duration_asc">Меньше всех читали</option>
           </select>
         </div>
 
@@ -396,14 +436,14 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 text-sm">
-                {filteredSessions.length === 0 ? (
+                {processedSessions.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-10 text-center text-gray-400">
                       Ничего не найдено
                     </td>
                   </tr>
                 ) : (
-                  filteredSessions.map((session) => (
+                  processedSessions.map((session) => (
                     <tr key={session.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="p-5 font-medium text-gray-900">
                         {session.profiles?.full_name || "—"}
