@@ -6,6 +6,7 @@ import ExcelJS from "exceljs";
 
 type SessionData = {
   id: number;
+  student_id: string; // Добавили ID ученика для обновления профиля
   status: string;
   started_at: string;
   completed_at: string | null;
@@ -53,7 +54,6 @@ export default function AdminPage() {
   const [editingSession, setEditingSession] = useState<SessionData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Новые состояния для поиска и фильтрации
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -66,6 +66,7 @@ export default function AdminPage() {
       .from("reading_sessions")
       .select(`
         id,
+        student_id,
         status,
         started_at,
         completed_at,
@@ -103,7 +104,9 @@ export default function AdminPage() {
     if (!editingSession) return;
     
     setIsSaving(true);
-    const { error } = await supabase
+    
+    // 1. Обновляем данные самой сессии (время и статус)
+    const { error: sessionError } = await supabase
       .from("reading_sessions")
       .update({
         status: editingSession.status,
@@ -112,16 +115,42 @@ export default function AdminPage() {
       })
       .eq("id", editingSession.id);
 
-    if (error) {
-      alert("Ошибка при сохранении: " + error.message);
+    // 2. Обновляем данные профиля (ФИО и класс)
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        full_name: editingSession.profiles.full_name,
+        class_name: editingSession.profiles.class_name
+      })
+      .eq("id", editingSession.student_id);
+
+    if (sessionError || profileError) {
+      alert("Ошибка при сохранении: " + (sessionError?.message || profileError?.message));
     } else {
-      setSessions(sessions.map(s => (s.id === editingSession.id ? editingSession : s)));
+      // Умное обновление локального состояния:
+      // Меняем ФИО и класс у ВСЕХ записей этого ученика, а время/статус - только у редактируемой
+      setSessions(sessions.map(s => {
+        if (s.student_id === editingSession.student_id) {
+          return {
+            ...s,
+            profiles: {
+              full_name: editingSession.profiles.full_name,
+              class_name: editingSession.profiles.class_name
+            },
+            ...(s.id === editingSession.id ? {
+              status: editingSession.status,
+              started_at: editingSession.started_at,
+              completed_at: editingSession.completed_at
+            } : {})
+          };
+        }
+        return s;
+      }));
       setEditingSession(null);
     }
     setIsSaving(false);
   };
 
-  // Логика фильтрации данных
   const filteredSessions = sessions.filter(session => {
     const matchesSearch = 
       (session.profiles?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -133,7 +162,6 @@ export default function AdminPage() {
   });
 
   const exportToExcel = async () => {
-    // Экспортируем только отфильтрованные данные (filteredSessions)
     if (!filteredSessions || filteredSessions.length === 0) {
       return alert("Нет данных для экспорта");
     }
@@ -219,13 +247,44 @@ export default function AdminPage() {
       
       {editingSession && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="mb-6">
               <h2 className="text-xl font-bold text-gray-900">Редактирование записи</h2>
-              <p className="text-sm text-gray-500 mt-1">{editingSession.profiles?.full_name} — {editingSession.books?.title}</p>
+              <p className="text-sm text-gray-500 mt-1">Книга: {editingSession.books?.title}</p>
             </div>
 
             <form onSubmit={handleUpdate} className="flex flex-col gap-4">
+              
+              {/* Поле редактирования ФИО */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">ФИО Ученика</label>
+                <input 
+                  type="text" 
+                  value={editingSession.profiles.full_name}
+                  onChange={e => setEditingSession({ 
+                    ...editingSession, 
+                    profiles: { ...editingSession.profiles, full_name: e.target.value } 
+                  })}
+                  className="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Поле редактирования Класса */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Класс</label>
+                <input 
+                  type="text" 
+                  value={editingSession.profiles.class_name}
+                  onChange={e => setEditingSession({ 
+                    ...editingSession, 
+                    profiles: { ...editingSession.profiles, class_name: e.target.value } 
+                  })}
+                  className="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  required
+                />
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Статус</label>
                 <select 
@@ -298,7 +357,6 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* Панель поиска и фильтрации */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <svg className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
