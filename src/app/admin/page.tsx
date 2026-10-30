@@ -39,7 +39,6 @@ function getDuration(start: string, end: string | null) {
   }
 }
 
-// Помощник для перевода ISO-даты в формат локального инпута datetime-local
 const toInputFormat = (isoString: string | null) => {
   if (!isoString) return "";
   const d = new Date(isoString);
@@ -51,9 +50,12 @@ export default function AdminPage() {
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Состояние для редактируемой записи
   const [editingSession, setEditingSession] = useState<SessionData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Новые состояния для поиска и фильтрации
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     fetchSessions();
@@ -81,7 +83,6 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  // ФУНКЦИЯ УДАЛЕНИЯ
   const handleDelete = async (id: number) => {
     if (!window.confirm("Удалить эту запись? Данное действие необратимо.")) return;
 
@@ -93,12 +94,10 @@ export default function AdminPage() {
     if (error) {
       alert("Ошибка при удалении: " + error.message);
     } else {
-      // Убираем удаленную запись из таблицы без перезагрузки
       setSessions(sessions.filter(session => session.id !== id));
     }
   };
 
-  // ФУНКЦИЯ ОБНОВЛЕНИЯ (СОХРАНЕНИЯ)
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSession) return;
@@ -116,15 +115,26 @@ export default function AdminPage() {
     if (error) {
       alert("Ошибка при сохранении: " + error.message);
     } else {
-      // Обновляем локальные данные в таблице
       setSessions(sessions.map(s => (s.id === editingSession.id ? editingSession : s)));
       setEditingSession(null);
     }
     setIsSaving(false);
   };
 
+  // Логика фильтрации данных
+  const filteredSessions = sessions.filter(session => {
+    const matchesSearch = 
+      (session.profiles?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (session.books?.title || "").toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || session.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
   const exportToExcel = async () => {
-    if (!sessions || sessions.length === 0) {
+    // Экспортируем только отфильтрованные данные (filteredSessions)
+    if (!filteredSessions || filteredSessions.length === 0) {
       return alert("Нет данных для экспорта");
     }
 
@@ -152,7 +162,7 @@ export default function AdminPage() {
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
     headerRow.height = 25;
 
-    sessions.forEach(session => {
+    filteredSessions.forEach(session => {
       worksheet.addRow({
         student: session.profiles?.full_name || "Неизвестно",
         class: session.profiles?.class_name || "-",
@@ -207,7 +217,6 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-gray-50 p-6 sm:p-10 text-gray-900">
       
-      {/* Модальное окно редактирования */}
       {editingSession && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
@@ -289,6 +298,31 @@ export default function AdminPage() {
           </button>
         </div>
 
+        {/* Панель поиска и фильтрации */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <svg className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input 
+              type="text" 
+              placeholder="Поиск по имени ученика или названию книги..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
+            />
+          </div>
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full sm:w-48 px-4 py-3 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm cursor-pointer"
+          >
+            <option value="all">Все статусы</option>
+            <option value="started">Читает</option>
+            <option value="finished">Завершил</option>
+          </select>
+        </div>
+
         <div className="bg-white shadow-xl shadow-indigo-100/50 rounded-2xl overflow-hidden border border-gray-100">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -304,14 +338,14 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 text-sm">
-                {sessions.length === 0 ? (
+                {filteredSessions.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-10 text-center text-gray-400">
-                      Нет данных о чтении
+                      Ничего не найдено
                     </td>
                   </tr>
                 ) : (
-                  sessions.map((session) => (
+                  filteredSessions.map((session) => (
                     <tr key={session.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="p-5 font-medium text-gray-900">
                         {session.profiles?.full_name || "—"}
@@ -346,7 +380,6 @@ export default function AdminPage() {
                         {getDuration(session.started_at, session.completed_at)}
                       </td>
                       <td className="p-5 text-center flex items-center justify-center gap-2">
-                        {/* Кнопка Редактировать */}
                         <button 
                           onClick={() => setEditingSession(session)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -356,8 +389,6 @@ export default function AdminPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        
-                        {/* Кнопка Удалить */}
                         <button 
                           onClick={() => handleDelete(session.id)}
                           className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
