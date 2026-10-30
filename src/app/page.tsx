@@ -1,19 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
-  const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [className, setClassName] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // Сохраняем твою логику: если ученик уже авторизован, сразу кидаем в книги
+  useEffect(() => {
+    const studentId = localStorage.getItem("student_id");
+    if (studentId) {
+      router.push("/books");
+    }
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !className) {
+    if (!fullName.trim() || !className) {
       alert("Пожалуйста, введите имя и выберите класс");
       return;
     }
@@ -21,17 +29,19 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // 1. Проверяем, есть ли уже такой ученик в базе
       let { data: profile, error: searchError } = await supabase
         .from("profiles")
         .select("id, full_name, class_name")
-        .eq("full_name", name.trim())
+        .eq("full_name", fullName.trim())
         .eq("class_name", className)
         .single();
 
+      // 2. Если нет, создаем новый профиль
       if (!profile) {
         const { data: newProfile, error: insertError } = await supabase
           .from("profiles")
-          .insert([{ full_name: name.trim(), class_name: className }])
+          .insert([{ full_name: fullName.trim(), class_name: className }])
           .select()
           .single();
 
@@ -39,6 +49,7 @@ export default function LoginPage() {
         profile = newProfile;
       }
 
+      // 3. Сохраняем данные в браузер и пускаем в библиотеку
       if (profile) {
         localStorage.setItem("student_id", profile.id);
         localStorage.setItem("student_name", profile.full_name);
@@ -53,100 +64,108 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6 selection:bg-indigo-100">
-      <div className="max-w-md w-full bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl shadow-indigo-100/50 border border-gray-100 relative overflow-hidden">
-        
-        <div className="absolute top-0 left-0 w-full h-2 bg-indigo-500"></div>
-        
-        <div className="text-center mb-10">
-          <span className="text-indigo-500 tracking-widest text-xs font-mono font-bold uppercase">Добро пожаловать</span>
-          <h1 className="mt-2 text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">MRJ Library</h1>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-8">
+      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+
+        {/* Левая часть - Картинка */}
+        <div className="flex justify-center order-2 lg:order-1">
+          <img
+            src="/book.png"
+            alt="My Reading Journey"
+            className="w-full max-w-md object-contain drop-shadow-2xl"
+          />
         </div>
 
-        <form onSubmit={handleLogin} className="flex flex-col gap-6">
-          
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">
-              Фамилия и Имя
-            </label>
-            <input 
-              type="text" 
-              placeholder="Например: Туйчиев Иззатилло"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border border-gray-200 bg-gray-50 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-gray-400 font-medium text-gray-900"
-              required
-            />
-          </div>
+        {/* Правая часть - Форма (Твой оригинальный дизайн) */}
+        <div className="bg-white shadow-xl rounded-2xl p-8 sm:p-10 order-1 lg:order-2 w-full max-w-md mx-auto">
+          <h1 className="text-4xl font-bold text-center text-gray-800 font-serif mb-2">
+            My Reading Journey
+          </h1>
+          <p className="text-center text-gray-500 mb-8">
+            Введи свои данные, чтобы начать читать
+          </p>
 
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">
-              Класс
-            </label>
-            <select 
-              value={className}
-              onChange={(e) => setClassName(e.target.value)}
-              className={`w-full border border-gray-200 bg-gray-50 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer font-medium ${className ? 'text-gray-900' : 'text-gray-400'}`}
-              required
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Имя и фамилия
+              </label>
+              <input
+                placeholder="Например: Иван Иванов"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-gray-900 bg-gray-50"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Класс
+              </label>
+              <select
+                value={className}
+                onChange={(e) => setClassName(e.target.value)}
+                required
+                className={`w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-gray-50 ${className ? 'text-gray-900' : 'text-gray-400'}`}
+              >
+                <option value="" disabled>Выберите свой класс...</option>
+                
+                <optgroup label="Junior Classes (Младшие)">
+                  <option value="1 A">1 A</option>
+                  <option value="1 B">1 B</option>
+                  <option value="1 C">1 C</option>
+                  <option value="1 D">1 D</option>
+                  
+                  <option value="2 A">2 A</option>
+                  <option value="2 B">2 B</option>
+                  <option value="2 C">2 C</option>
+                  <option value="2 D">2 D</option>
+                  
+                  <option value="3 A">3 A</option>
+                  <option value="3 B">3 B</option>
+                  <option value="3 C">3 C</option>
+                  <option value="3 D">3 D</option>
+                  
+                  <option value="4 A">4 A</option>
+                  <option value="4 B">4 B</option>
+                  <option value="4 C">4 C</option>
+                </optgroup>
+
+                <optgroup label="Senior Classes (Старшие)">
+                  <option value="5 A">5 A</option>
+                  <option value="5 B">5 B</option>
+                  <option value="5 C">5 C</option>
+                  
+                  <option value="6 A">6 A</option>
+                  <option value="6 B">6 B</option>
+                  
+                  <option value="7 A">7 A</option>
+                  <option value="7 B">7 B</option>
+                  <option value="7 C">7 C</option>
+                  
+                  <option value="8 A">8 A</option>
+                  <option value="8 B">8 B</option>
+                  
+                  <option value="9 A">9 A</option>
+                  <option value="10 A">10 A</option>
+                  <option value="11 A">11 A</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 mt-4 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-400"
             >
-              <option value="" disabled>Выберите класс...</option>
-              
-              <optgroup label="Junior Classes (Младшие)" className="font-bold text-gray-900">
-                <option value="1 A">1 A</option>
-                <option value="1 B">1 B</option>
-                <option value="1 C">1 C</option>
-                <option value="1 D">1 D</option>
-                
-                <option value="2 A">2 A</option>
-                <option value="2 B">2 B</option>
-                <option value="2 C">2 C</option>
-                <option value="2 D">2 D</option>
-                
-                <option value="3 A">3 A</option>
-                <option value="3 B">3 B</option>
-                <option value="3 C">3 C</option>
-                <option value="3 D">3 D</option>
-                
-                <option value="4 A">4 A</option>
-                <option value="4 B">4 B</option>
-                <option value="4 C">4 C</option>
-              </optgroup>
+              {loading ? "Загрузка..." : "Начать читать 🚀"}
+            </button>
+          </form>
+        </div>
 
-              <optgroup label="Senior Classes (Старшие)" className="font-bold text-gray-900">
-                <option value="5 A">5 A</option>
-                <option value="5 B">5 B</option>
-                <option value="5 C">5 C</option>
-                
-                <option value="6 A">6 A</option>
-                <option value="6 B">6 B</option>
-                
-                <option value="7 A">7 A</option>
-                <option value="7 B">7 B</option>
-                <option value="7 C">7 C</option>
-                
-                <option value="8 A">8 A</option>
-                <option value="8 B">8 B</option>
-                
-                <option value="9 A">9 A</option>
-                <option value="10 A">10 A</option>
-                <option value="11 A">11 A</option>
-              </optgroup>
-            </select>
-          </div>
-
-          <button 
-            type="submit"
-            disabled={loading}
-            className={`mt-4 w-full py-4 rounded-full text-sm font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 ${
-              loading 
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-200 active:scale-[0.98]'
-            }`}
-          >
-            {loading ? 'Вход...' : 'Начать чтение →'}
-          </button>
-        </form>
       </div>
-    </main>
+    </div>
   );
 }
