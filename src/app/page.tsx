@@ -21,7 +21,6 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // 1. Проверяем, есть ли уже такой ученик в базе
       let { data: profile, error: searchError } = await supabase
         .from("profiles")
         .select("id, full_name, class_name")
@@ -29,7 +28,6 @@ export default function LoginPage() {
         .eq("class_name", className)
         .single();
 
-      // 2. Если нет, создаем новый профиль
       if (!profile) {
         const { data: newProfile, error: insertError } = await supabase
           .from("profiles")
@@ -41,7 +39,6 @@ export default function LoginPage() {
         profile = newProfile;
       }
 
-      // 3. Сохраняем данные в браузер и пускаем в библиотеку
       if (profile) {
         localStorage.setItem("student_id", profile.id);
         localStorage.setItem("student_name", profile.full_name);
@@ -57,21 +54,19 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6 selection:bg-indigo-100">
-      <div className="max-w-md w-full bg-white p-8 sm:p-10 rounded-3xl shadow-2xl shadow-indigo-100 border border-gray-100 relative overflow-hidden">
+      <div className="max-w-md w-full bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl shadow-indigo-100/50 border border-gray-100 relative overflow-hidden">
         
-        {/* Декоративный фон */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+        <div className="absolute top-0 left-0 w-full h-2 bg-indigo-500"></div>
         
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">MRJ Library</h1>
-          <p className="text-sm text-gray-500 mt-2 font-mono uppercase tracking-widest">Вход для учеников</p>
+          <span className="text-indigo-500 tracking-widest text-xs font-mono font-bold uppercase">Добро пожаловать</span>
+          <h1 className="mt-2 text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">MRJ Library</h1>
         </div>
 
         <form onSubmit={handleLogin} className="flex flex-col gap-6">
           
-          {/* Поле ФИО */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">
               Фамилия и Имя
             </label>
             <input 
@@ -79,23 +74,22 @@ export default function LoginPage() {
               placeholder="Например: Туйчиев Иззатилло"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full border border-gray-200 bg-gray-50/50 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-gray-400 font-medium text-gray-900"
+              className="w-full border border-gray-200 bg-gray-50 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-gray-400 font-medium text-gray-900"
               required
             />
           </div>
 
-          {/* Выпадающий список классов */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">
               Класс
             </label>
             <select 
               value={className}
               onChange={(e) => setClassName(e.target.value)}
-              className={`w-full border border-gray-200 bg-gray-50/50 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer font-medium ${className ? 'text-gray-900' : 'text-gray-400'}`}
+              className={`w-full border border-gray-200 bg-gray-50 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer font-medium ${className ? 'text-gray-900' : 'text-gray-400'}`}
               required
             >
-              <option value="" disabled>Выберите свой класс...</option>
+              <option value="" disabled>Выберите класс...</option>
               
               <optgroup label="Junior Classes (Младшие)" className="font-bold text-gray-900">
                 <option value="1 A">1 A</option>
@@ -143,16 +137,15 @@ export default function LoginPage() {
           <button 
             type="submit"
             disabled={loading}
-            className={`mt-4 w-full py-4 rounded-2xl text-sm font-bold uppercase tracking-widest transition-all duration-300 ${
+            className={`mt-4 w-full py-4 rounded-full text-sm font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 ${
               loading 
-                ? 'bg-indigo-400 text-white cursor-not-allowed' 
-                : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200 active:scale-[0.98]'
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-200 active:scale-[0.98]'
             }`}
           >
-            {loading ? 'Загрузка...' : 'Войти в библиотеку'}
+            {loading ? 'Вход...' : 'Начать чтение →'}
           </button>
         </form>
-
       </div>
     </main>
   );
