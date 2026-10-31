@@ -56,7 +56,8 @@ export default function AdminPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortOrder, setSortOrder] = useState("newest"); // Новое состояние для сортировки
+  const [classFilter, setClassFilter] = useState("all"); // Новое состояние для фильтра классов
+  const [sortOrder, setSortOrder] = useState("newest");
 
   useEffect(() => {
     fetchSessions();
@@ -148,18 +149,21 @@ export default function AdminPage() {
     setIsSaving(false);
   };
 
-  // 1. Сначала фильтруем
+  // 1. Применяем фильтры
   const filteredSessions = sessions.filter(session => {
     const matchesSearch = 
       (session.profiles?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (session.books?.title || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || session.status === statusFilter;
+    
+    // Фильтрация по классу
+    const matchesClass = classFilter === "all" || (session.profiles?.class_name || "").trim().toUpperCase() === classFilter.trim().toUpperCase();
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesClass;
   });
 
-  // 2. Затем сортируем
+  // 2. Сортируем отфильтрованный массив
   const processedSessions = [...filteredSessions].sort((a, b) => {
     if (sortOrder === "newest") {
       return new Date(b.started_at).getTime() - new Date(a.started_at).getTime();
@@ -168,9 +172,8 @@ export default function AdminPage() {
       return new Date(a.started_at).getTime() - new Date(b.started_at).getTime();
     }
     
-    // Вычисляем чистую длительность в миллисекундах для сортировки по времени
     const getMs = (session: SessionData) => {
-      if (!session.completed_at) return -1; // Если не закончил, отправляем в самый низ
+      if (!session.completed_at) return -1;
       return new Date(session.completed_at).getTime() - new Date(session.started_at).getTime();
     };
 
@@ -178,20 +181,18 @@ export default function AdminPage() {
     const durationB = getMs(b);
 
     if (sortOrder === "duration_desc") {
-      return durationB - durationA; // Дольше всех -> Меньше всех
+      return durationB - durationA;
     }
     if (sortOrder === "duration_asc") {
-      // Игнорируем незавершенные (-1) при сортировке "от меньшего к большему", оставляем их внизу
       if (durationA === -1) return 1;
       if (durationB === -1) return -1;
-      return durationA - durationB; // Меньше всех -> Дольше всех
+      return durationA - durationB;
     }
     
     return 0;
   });
 
   const exportToExcel = async () => {
-    // Экспортируем уже отфильтрованные и ОТСОРТИРОВАННЫЕ данные
     if (!processedSessions || processedSessions.length === 0) {
       return alert("Нет данных для экспорта");
     }
@@ -384,7 +385,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* Обновленная панель фильтров и сортировки */}
+        {/* Обновленная панель фильтров (Добавлен фильтр по классам) */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <svg className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -399,6 +400,7 @@ export default function AdminPage() {
             />
           </div>
           
+          {/* Фильтр статусов */}
           <select 
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -409,6 +411,48 @@ export default function AdminPage() {
             <option value="finished">Завершил</option>
           </select>
 
+          {/* НОВЫЙ ФИЛЬТР ПО КЛАССАМ */}
+          <select 
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+            className="w-full md:w-48 px-4 py-3 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm cursor-pointer"
+          >
+            <option value="all">Все классы</option>
+            <optgroup label="Junior Classes (Младшие)" className="font-bold text-gray-900">
+              <option value="1 A">1 A</option>
+              <option value="1 B">1 B</option>
+              <option value="1 C">1 C</option>
+              <option value="1 D">1 D</option>
+              <option value="2 A">2 A</option>
+              <option value="2 B">2 B</option>
+              <option value="2 C">2 C</option>
+              <option value="2 D">2 D</option>
+              <option value="3 A">3 A</option>
+              <option value="3 B">3 B</option>
+              <option value="3 C">3 C</option>
+              <option value="3 D">3 D</option>
+              <option value="4 A">4 A</option>
+              <option value="4 B">4 B</option>
+              <option value="4 C">4 C</option>
+            </optgroup>
+            <optgroup label="Senior Classes (Старшие)" className="font-bold text-gray-900">
+              <option value="5 A">5 A</option>
+              <option value="5 B">5 B</option>
+              <option value="5 C">5 C</option>
+              <option value="6 A">6 A</option>
+              <option value="6 B">6 B</option>
+              <option value="7 A">7 A</option>
+              <option value="7 B">7 B</option>
+              <option value="7 C">7 C</option>
+              <option value="8 A">8 A</option>
+              <option value="8 B">8 B</option>
+              <option value="9 A">9 A</option>
+              <option value="10 A">10 A</option>
+              <option value="11 A">11 A</option>
+            </optgroup>
+          </select>
+
+          {/* Сортировка */}
           <select 
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
