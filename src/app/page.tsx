@@ -115,35 +115,35 @@ export default function LoginPage() {
                 <optgroup label="Junior Classes (Младшие)">
                   <option value="1 A">1 A</option>
                   <option value="1 B">1 B</option>
-                  <option value="1 C">1 C</option>
+                  <option value="1 V">1 V</option>
                   <option value="1 D">1 D</option>
                   
                   <option value="2 A">2 A</option>
                   <option value="2 B">2 B</option>
-                  <option value="2 C">2 C</option>
+                  <option value="2 V">2 V</option>
                   <option value="2 D">2 D</option>
                   
                   <option value="3 A">3 A</option>
                   <option value="3 B">3 B</option>
-                  <option value="3 C">3 C</option>
+                  <option value="3 V">3 V</option>
                   <option value="3 D">3 D</option>
                   
                   <option value="4 A">4 A</option>
                   <option value="4 B">4 B</option>
-                  <option value="4 C">4 C</option>
+                  <option value="4 V">4 V</option>
                 </optgroup>
 
                 <optgroup label="Senior Classes (Старшие)">
                   <option value="5 A">5 A</option>
                   <option value="5 B">5 B</option>
-                  <option value="5 C">5 C</option>
+                  <option value="5 V">5 V</option>
                   
                   <option value="6 A">6 A</option>
                   <option value="6 B">6 B</option>
                   
                   <option value="7 A">7 A</option>
                   <option value="7 B">7 B</option>
-                  <option value="7 C">7 C</option>
+                  <option value="7 V">7 V</option>
                   
                   <option value="8 A">8 A</option>
                   <option value="8 B">8 B</option>
