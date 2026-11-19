@@ -1,1 +1,61 @@
 @import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-serif: var(--font-playfair), Georgia, Cambria, serif;
+}
+
+.paper-surface {
+  background-color: #f6f3ec;
+  background-image: radial-gradient(rgba(28, 25, 23, 0.055) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.book-object {
+  position: relative;
+  border-radius: 3px 10px 10px 3px;
+  box-shadow:
+    -4px 8px 18px -6px rgba(28, 25, 23, 0.28),
+    2px 14px 26px -12px rgba(28, 25, 23, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.group:hover .book-object {
+  transform: translateY(-6px) rotate(-1.2deg);
+  box-shadow:
+    -8px 16px 28px -8px rgba(28, 25, 23, 0.32),
+    4px 20px 32px -14px rgba(28, 25, 23, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.book-spine-overlay {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.24) 0%,
+    rgba(255, 255, 255, 0.28) 3.5%,
+    rgba(0, 0, 0, 0.12) 6.5%,
+    rgba(255, 255, 255, 0.08) 9%,
+    transparent 16%
+  );
+}
+
+.book-page-edge {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: -4px;
+  width: 5px;
+  border-radius: 0 3px 3px 0;
+  background: repeating-linear-gradient(
+    90deg,
+    #f5f1e8 0px,
+    #f5f1e8 1px,
+    #ded7c9 1px,
+    #ded7c9 2px
+  );
+  box-shadow: 1px 0 2px rgba(28, 25, 23, 0.14);
+}
